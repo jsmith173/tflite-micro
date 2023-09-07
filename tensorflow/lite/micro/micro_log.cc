@@ -29,6 +29,11 @@ void Log(const char* format, va_list args) {
   // Only pulling in the implementation of this function for builds where we
   // expect to make use of it to be extra cautious about not increasing the code
   // size.
+  int my_log_debug;
+  
+  my_log_debug=1;
+  my_log_debug=1;
+  
   static constexpr int kMaxLogLen = 256;
   char log_buffer[kMaxLogLen];
   MicroVsnprintf(log_buffer, kMaxLogLen, format, args);
