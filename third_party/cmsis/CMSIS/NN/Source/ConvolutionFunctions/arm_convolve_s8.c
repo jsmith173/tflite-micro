@@ -193,7 +193,7 @@ arm_cmsis_nn_status arm_convolve_s8(const cmsis_nn_context *ctx,
         const uint16_t dilation_x = conv_params->dilation.w;
         const uint16_t dilation_y = conv_params->dilation.h;
 
-        int32_t i_out_y, i_out_x, i_ker_y, i_ker_x;
+        int32_t i_out_y, i_out_x, i_ker_y, i_ker_x, deb1=0, a1;
 
         /* Generate two columns from the input tensor a GEMM computation */
         q15_t *two_column_buf = buffer_a;
@@ -232,6 +232,8 @@ arm_cmsis_nn_status arm_convolve_s8(const cmsis_nn_context *ctx,
                 /* Computation is filed for every 2 columns */
                 if (two_column_buf == buffer_a + 2 * input_ch * kernel_y * kernel_x)
                 {
+                	if (deb1 == 20)
+                		a1=1;
                     out = arm_nn_mat_mult_kernel_s8_s16(filter_data,
                                                         buffer_a,
                                                         output_ch,
@@ -246,6 +248,7 @@ arm_cmsis_nn_status arm_convolve_s8(const cmsis_nn_context *ctx,
 
                     /* counter reset */
                     two_column_buf = buffer_a;
+                    deb1++;
                 }
             }
         }
