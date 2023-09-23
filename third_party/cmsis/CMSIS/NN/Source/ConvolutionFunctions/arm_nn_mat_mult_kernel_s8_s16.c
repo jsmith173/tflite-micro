@@ -29,6 +29,7 @@
 
 #include "arm_nnfunctions.h"
 #include "arm_nnsupportfunctions.h"
+#include "deb1.h"
 
 /*
  * Matrix-multiplication function for convolution with per-channel requantization.
@@ -37,7 +38,7 @@
  *
  */
 
-q7_t *arm_nn_mat_mult_kernel_s8_s16(const q7_t *input_a,
+q7_t __attribute__((optimize("O0"))) *arm_nn_mat_mult_kernel_s8_s16(const q7_t *input_a,
                                     const q15_t *input_b,
                                     const uint16_t output_ch,
                                     const int32_t *out_shift,
@@ -57,6 +58,8 @@ q7_t *arm_nn_mat_mult_kernel_s8_s16(const q7_t *input_a,
     uint16_t row_count = output_ch / 2;
     const q7_t *ip_a0 = input_a;
     /* this loop over rows in A */
+    volatile_data[0]=input_a;
+    volatile_data[1]=out_0;
     while (row_count)
     {
         /* setup pointers for B */
@@ -223,6 +226,7 @@ q7_t *arm_nn_mat_mult_kernel_s8_s16(const q7_t *input_a,
         out_shift++;
     }
 
+    volatile_data[2]=DBG_PT6;
     out_0 += output_ch;
 
     /* return the new output pointer with offset */

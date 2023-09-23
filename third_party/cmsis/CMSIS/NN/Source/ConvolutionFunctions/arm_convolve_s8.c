@@ -30,6 +30,12 @@
 
 #include "arm_nnfunctions.h"
 #include "arm_nnsupportfunctions.h"
+#include "deb1.h"
+
+volatile int volatile_data[32];
+volatile int cnt_data[32];
+
+
 
 /**
  *  @ingroup groupNN
@@ -67,6 +73,10 @@ arm_cmsis_nn_status arm_convolve_s8(const cmsis_nn_context *ctx,
         return ARM_CMSIS_NN_ARG_ERROR;
     }
     q15_t *buffer_a = (q15_t *)ctx->buf;
+
+    volatile_data[0]=input_data;
+    volatile_data[1]=output_data;
+    volatile_data[2]=DBG_PT1;
 
     const int32_t input_batches = input_dims->n;
     const uint16_t input_x = input_dims->w;
@@ -195,6 +205,11 @@ arm_cmsis_nn_status arm_convolve_s8(const cmsis_nn_context *ctx,
 
         int32_t i_out_y, i_out_x, i_ker_y, i_ker_x, deb1=0, a1;
 
+        volatile_data[0] = buffer_a;
+        volatile_data[1] = input_data;
+        volatile_data[2] = output_data;
+        volatile_data[3] = 0;
+
         /* Generate two columns from the input tensor a GEMM computation */
         q15_t *two_column_buf = buffer_a;
         q7_t *out = output_data;
@@ -229,11 +244,14 @@ arm_cmsis_nn_status arm_convolve_s8(const cmsis_nn_context *ctx,
                     }
                 }
 
+                volatile_data[0] = DBG_PT2;
+				cnt_data[CNT_PT1]++;
+
                 /* Computation is filed for every 2 columns */
                 if (two_column_buf == buffer_a + 2 * input_ch * kernel_y * kernel_x)
                 {
-                	if (deb1 == 20)
-                		a1=1;
+                	if (cnt_data[CNT_PT2] == 20)
+                		volatile_data[0] = DBG_PT5;
                     out = arm_nn_mat_mult_kernel_s8_s16(filter_data,
                                                         buffer_a,
                                                         output_ch,
@@ -248,6 +266,8 @@ arm_cmsis_nn_status arm_convolve_s8(const cmsis_nn_context *ctx,
 
                     /* counter reset */
                     two_column_buf = buffer_a;
+                    volatile_data[0]=DBG_PT3;
+ 				    cnt_data[CNT_PT2]++;
                     deb1++;
                 }
             }
@@ -316,6 +336,7 @@ arm_cmsis_nn_status arm_convolve_s8(const cmsis_nn_context *ctx,
     }
 
     /* Return to application */
+    volatile_data[0]=DBG_PT4;
     return ARM_CMSIS_NN_SUCCESS;
 }
 
