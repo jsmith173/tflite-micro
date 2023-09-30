@@ -10,6 +10,11 @@ extern volatile int cnt_data[32];
 #define DBG_PT4 4
 #define DBG_PT5 5
 #define DBG_PT6 6
+#define DBG_PT7 7
+#define DBG_PT8 8
+#define DBG_PT9 9
+#define DBG_PT10 10
+#define DBG_PT11 11
 
 #define CNT_PT1 0
 #define CNT_PT2 1

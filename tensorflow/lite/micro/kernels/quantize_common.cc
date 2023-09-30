@@ -25,6 +25,7 @@ limitations under the License.
 #include "tensorflow/lite/micro/kernels/quantize.h"
 #include "tensorflow/lite/micro/micro_log.h"
 #include "tensorflow/lite/micro/micro_utils.h"
+#include "deb1.h"
 
 namespace tflite {
 
@@ -96,6 +97,7 @@ TfLiteStatus EvalQuantizeReference(TfLiteContext* context, TfLiteNode* node) {
   const TfLiteEvalTensor* input = tflite::micro::GetEvalInput(context, node, 0);
   TfLiteEvalTensor* output = tflite::micro::GetEvalOutput(context, node, 0);
 
+  volatile_data[0] = DBG_PT10;
   if (input->type == kTfLiteFloat32) {
     switch (output->type) {
       case kTfLiteInt8:
@@ -233,6 +235,7 @@ TfLiteStatus EvalQuantizeReference(TfLiteContext* context, TfLiteNode* node) {
     return kTfLiteError;
   }
 
+  volatile_data[0] = DBG_PT11;
   return kTfLiteOk;
 }
 

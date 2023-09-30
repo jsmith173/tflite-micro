@@ -208,7 +208,7 @@ arm_cmsis_nn_status arm_convolve_s8(const cmsis_nn_context *ctx,
         volatile_data[0] = buffer_a;
         volatile_data[1] = input_data;
         volatile_data[2] = output_data;
-        volatile_data[3] = 0;
+        volatile_data[3] = DBG_PT7;
 
         /* Generate two columns from the input tensor a GEMM computation */
         q15_t *two_column_buf = buffer_a;

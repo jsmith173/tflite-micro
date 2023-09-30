@@ -29,6 +29,7 @@
  * -------------------------------------------------------------------- */
 
 #include "arm_nnsupportfunctions.h"
+#include "deb1.h"
 
 /**
  * @ingroup groupSupport
@@ -72,6 +73,8 @@ void arm_q7_to_q15_with_offset(const q7_t *src, q15_t *dst, uint32_t block_size,
     /*loop unrolling */
     block_cnt = block_size >> 2;
 
+	volatile_data[0] = DBG_PT9;
+	
     /* First part of the processing with loop unrolling.  Compute 4 outputs at a time. */
     const q31_t offset_q15x2 = __PKHBT(offset, offset, 16);
     while (block_cnt > 0)
@@ -107,6 +110,8 @@ void arm_q7_to_q15_with_offset(const q7_t *src, q15_t *dst, uint32_t block_size,
         /* Decrement the loop counter */
         block_cnt--;
     }
+	
+	volatile_data[0] = DBG_PT8;
 }
 
 /**
