@@ -38,7 +38,7 @@
  *
  */
 
-q7_t __attribute__((optimize("O0"))) *arm_nn_mat_mult_kernel_s8_s16(const q7_t *input_a,
+q7_t *arm_nn_mat_mult_kernel_s8_s16(const q7_t *input_a,
                                     const q15_t *input_b,
                                     const uint16_t output_ch,
                                     const int32_t *out_shift,
