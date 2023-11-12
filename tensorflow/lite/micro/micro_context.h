@@ -40,7 +40,7 @@ class MicroContext {
   // The memory is allocated from the tail.
   // This method is only available in Init or Prepare stage.
   // Virtual so that it can be faked for kernel tests.
-  virtual void* AllocatePersistentBuffer(size_t bytes);
+  virtual void* AllocatePersistentBuffer(size_t bytes) = 0;
 
   // Request a scratch buffer in the arena through static memory planning.
   // This method is only available in Prepare stage and the buffer is allocated
@@ -48,45 +48,38 @@ class MicroContext {
   // GetScratchBuffer API can be used to fetch the address.
   // Virtual so that it can be faked for kernel tests.
   virtual TfLiteStatus RequestScratchBufferInArena(size_t bytes,
-                                                   int* buffer_idx);
+                                                   int* buffer_idx) = 0;
 
   // Get the scratch buffer pointer.
   // This method is only available in Eval stage.
   // Virtual so that it can be faked for kernel tests.
-  virtual void* GetScratchBuffer(int buffer_idx);
+  virtual void* GetScratchBuffer(int buffer_idx) = 0;
 
   // Returns a temporary TfLiteTensor struct for a given index.
   // Virtual so that it can be faked for kernel tests.
-  virtual TfLiteTensor* AllocateTempTfLiteTensor(int tensor_idx);
+  virtual TfLiteTensor* AllocateTempTfLiteTensor(int tensor_idx) = 0;
 
   // Returns a temporary TfLiteTensor struct for the specified input tensor of a
   // given mode. This is the recommended API over the deprecated
   // GetInput/GetInputSafe to get a temp input tensor. The returned tensor shall
   // be freed via calling DeallocateTempTfLiteTensor.
   virtual TfLiteTensor* AllocateTempInputTensor(const TfLiteNode* node,
-                                                int index);
+                                                int index) = 0;
 
   // Returns a temporary TfLiteTensor struct for the specified output tensor of
   // a given mode. This is the recommended API over the deprecated
   // GetOutput/GetOutputSafe to get a temp output tensor. The returned tensor
   // shall be freed via calling DeallocateTempTfLiteTensor.
   virtual TfLiteTensor* AllocateTempOutputTensor(const TfLiteNode* node,
-                                                 int index);
-
-  // Returns a temporary TfLiteTensor struct for the specified intermediate
-  // tensor of a given mode. This is the recommended API over the deprecated
-  // GetIntermediates/GetIntermediatesSafe to get a temp intermediate tensor.
-  // The returned tensor shall be freed via calling DeallocateTempTfLiteTensor.
-  virtual TfLiteTensor* AllocateTempIntermediateTensor(const TfLiteNode* node,
-                                                       int index);
+                                                 int index) = 0;
 
   // Deallocates a temp TfLiteTensor.
   // Virtual so that it can be faked for kernel tests.
-  virtual void DeallocateTempTfLiteTensor(TfLiteTensor* tensor);
+  virtual void DeallocateTempTfLiteTensor(TfLiteTensor* tensor) = 0;
 
   // Returns a TfLiteEvalTensor struct for a given index.
   // Virtual so that it can be faked for kernel tests.
-  virtual TfLiteEvalTensor* GetEvalTensor(int tensor_idx);
+  virtual TfLiteEvalTensor* GetEvalTensor(int tensor_idx) = 0;
 
   // Does not take ownership of the pointer and the pointer must refer to valid
   // an object that outlive this class instance.
@@ -95,23 +88,15 @@ class MicroContext {
 
   void* external_context() { return external_context_payload_; }
 
-  MicroGraph& graph() { return graph_; }
+  MicroGraph& graph() { return *graph_; }
 
-  // Sets the pointer to a list of ScratchBufferHandle instances.
-  // Not API between TFLM and kernels. Primarily used by the framework for
-  // housekeeping in MicroContext.
-  void SetScratchBufferHandles(ScratchBufferHandle* scratch_buffer_handles);
+ protected:
 
- private:
-  // Return the tensor index as tensor_indices[index]. tensor_indices is of
-  // max_size. Return -1 if index is not in the valid range of tensor_indices.
-  int GetTensorIndex(int index, int max_size, const int* tensor_indices);
+  MicroAllocator *allocator_;
+  MicroGraph *graph_;
+  const Model *model_;
 
-  MicroAllocator& allocator_;
-  MicroGraph& graph_;
-  const Model* model_;
 
-  ScratchBufferHandle* scratch_buffer_handles_ = nullptr;
   void* external_context_payload_ = nullptr;
 
   TF_LITE_REMOVE_VIRTUAL_DELETE
@@ -155,6 +140,75 @@ inline TfLiteExternalContext* MicroContextGetExternalContext(
 // Requests that an error be reported with format string msg.
 void MicroContextReportOpError(struct TfLiteContext* context,
                                const char* format, ...);
+
+class MicroInterpreterContext : public MicroContext {
+ public:
+  // Does not take any ownership, and all pointers must refer to valid objects
+  // that outlive the one constructed.
+  explicit MicroInterpreterContext(MicroAllocator* allocator, const Model* model,
+                        MicroGraph* graph);
+  virtual ~MicroInterpreterContext();
+
+  // Allocate persistent buffer which has the same life time as the interpreter.
+  // Returns nullptr on failure.
+  // The memory is allocated from the tail.
+  // This method is only available in Init or Prepare stage.
+  // Virtual so that it can be faked for kernel tests.
+  virtual void* AllocatePersistentBuffer(size_t bytes);
+
+  // Request a scratch buffer in the arena through static memory planning.
+  // This method is only available in Prepare stage and the buffer is allocated
+  // by the interpreter between Prepare and Eval stage. In Eval stage,
+  // GetScratchBuffer API can be used to fetch the address.
+  // Virtual so that it can be faked for kernel tests.
+  virtual TfLiteStatus RequestScratchBufferInArena(size_t bytes,
+                                                   int* buffer_idx);
+
+  // Get the scratch buffer pointer.
+  // This method is only available in Eval stage.
+  // Virtual so that it can be faked for kernel tests.
+  virtual void* GetScratchBuffer(int buffer_idx);
+
+  // Returns a temporary TfLiteTensor struct for a given index.
+  // Virtual so that it can be faked for kernel tests.
+  virtual TfLiteTensor* AllocateTempTfLiteTensor(int tensor_idx);
+
+  // Returns a temporary TfLiteTensor struct for the specified input tensor of a
+  // given mode. This is the recommended API over the deprecated
+  // GetInput/GetInputSafe to get a temp input tensor. The returned tensor shall
+  // be freed via calling DeallocateTempTfLiteTensor.
+  virtual TfLiteTensor* AllocateTempInputTensor(const TfLiteNode* node,
+                                                int index);
+
+  // Returns a temporary TfLiteTensor struct for the specified output tensor of
+  // a given mode. This is the recommended API over the deprecated
+  // GetOutput/GetOutputSafe to get a temp output tensor. The returned tensor
+  // shall be freed via calling DeallocateTempTfLiteTensor.
+  virtual TfLiteTensor* AllocateTempOutputTensor(const TfLiteNode* node,
+                                                 int index);
+
+  // Deallocates a temp TfLiteTensor.
+  // Virtual so that it can be faked for kernel tests.
+  virtual void DeallocateTempTfLiteTensor(TfLiteTensor* tensor);
+
+  // Returns a TfLiteEvalTensor struct for a given index.
+  // Virtual so that it can be faked for kernel tests.
+  virtual TfLiteEvalTensor* GetEvalTensor(int tensor_idx);
+
+  // Sets the pointer to a list of ScratchBufferHandle instances.
+  // Not API between TFLM and kernels. Primarily used by the framework for
+  // housekeeping in MicroContext.
+  void SetScratchBufferHandles(ScratchBufferHandle* scratch_buffer_handles);
+
+ private:
+  // Return the tensor index as tensor_indices[index]. tensor_indices is of
+  // max_size. Return -1 if index is not in the valid range of tensor_indices.
+  int GetTensorIndex(int index, int max_size, const int* tensor_indices);
+
+  ScratchBufferHandle* scratch_buffer_handles_ = nullptr;
+
+  TF_LITE_REMOVE_VIRTUAL_DELETE
+};
 
 }  // namespace tflite
 

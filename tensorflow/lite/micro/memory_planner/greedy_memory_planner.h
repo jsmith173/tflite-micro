@@ -62,12 +62,13 @@ class GreedyMemoryPlanner : public MicroMemoryPlanner {
                     int scratch_buffer_size) override;
 
   // Record details of a buffer we want to place.
-  TfLiteStatus AddBuffer(int size, int first_time_used,
-                         int last_time_used) override;
+  TfLiteStatus AddBuffer(ErrorReporter* error_reporter, int size,
+                         int first_time_used, int last_time_used) override;
 
   // Record details of an offline planned buffer offset we want to place.
   // offline_offset is the buffer offset from the start of the arena.
-  TfLiteStatus AddBuffer(int size, int first_time_used, int last_time_used,
+  TfLiteStatus AddBuffer(ErrorReporter* error_reporter, int size,
+                         int first_time_used, int last_time_used,
                          int offline_offset) override;
 
   // Returns the high-water mark of used memory. This is the minimum size of a
@@ -80,14 +81,15 @@ class GreedyMemoryPlanner : public MicroMemoryPlanner {
   // Where a given buffer should be placed in the memory arena.
   // This information is stored in the memory arena itself, so once the arena
   // is used for inference, it will be overwritten.
-  TfLiteStatus GetOffsetForBuffer(int buffer_index, int* offset) override;
+  TfLiteStatus GetOffsetForBuffer(ErrorReporter* error_reporter,
+                                  int buffer_index, int* offset) override;
 
   // Prints an ascii-art diagram of the buffer layout plan.
   void PrintMemoryPlan() override;
 
   // Debug method to check whether any buffer allocations are overlapping. This
   // is an O(N^2) complexity operation, so only use for testing.
-  bool DoAnyBuffersOverlap();
+  bool DoAnyBuffersOverlap(ErrorReporter* error_reporter);
 
   // Used to store a list of buffers ordered by their offset.
   struct ListEntry {
@@ -156,7 +158,7 @@ class GreedyMemoryPlanner : public MicroMemoryPlanner {
 
   // Whether buffers have been added since the last plan was calculated.
   bool need_to_calculate_offsets_;
-
+public:
   TF_LITE_REMOVE_VIRTUAL_DELETE
 };
 

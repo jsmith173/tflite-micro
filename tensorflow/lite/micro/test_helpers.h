@@ -17,10 +17,12 @@ limitations under the License.
 #define TENSORFLOW_LITE_MICRO_TEST_HELPERS_H_
 
 #include <cstdint>
+#include <cmath>
 #include <limits>
 
 #include "flatbuffers/flatbuffers.h"  // from @flatbuffers
 #include "tensorflow/lite/c/common.h"
+#include "tensorflow/lite/kernels/internal/cppmath.h"
 #include "tensorflow/lite/kernels/internal/compatibility.h"
 #include "tensorflow/lite/kernels/internal/tensor_ctypes.h"
 #include "tensorflow/lite/micro/all_ops_resolver.h"
@@ -157,9 +159,6 @@ const Model* GetSimpleStatefulModel();
 // Returns a flatbuffer model with "if" and two subgraphs.
 const Model* GetSimpleModelWithSubgraphsAndIf();
 
-// Returns a flatbuffer model with "while" and three subgraphs.
-const Model* GetSimpleModelWithSubgraphsAndWhile();
-
 // Returns a flatbuffer model with "if" and two subgraphs and the input tensor 1
 // of "if" subgraph overlaps with the input tensor 2 of subgraph 1.
 const Model* GetModelWithIfAndSubgraphInputTensorOverlap();
@@ -288,8 +287,8 @@ inline float ScaleFromMinMax(const float min, const float max) {
 // Derives the quantization zero point from a min and max range.
 template <typename T>
 inline int ZeroPointFromMinMax(const float min, const float max) {
-  return static_cast<int>(std::numeric_limits<T>::min()) +
-         static_cast<int>(-min / ScaleFromMinMax<T>(min, max) + 0.5f);
+  auto offset = static_cast<int>(TfLiteTruncf(-min / ScaleFromMinMax<T>(min, max)));
+  return static_cast<int>(std::numeric_limits<T>::min()) + offset;
 }
 
 }  // namespace testing

@@ -1,4 +1,4 @@
-/* Copyright 2022 The TensorFlow Authors. All Rights Reserved.
+/* Copyright 2020 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,18 +27,34 @@ limitations under the License.
 #include "tensorflow/lite/micro/micro_context.h"
 #include "tensorflow/lite/micro/micro_graph.h"
 #include "tensorflow/lite/micro/micro_op_resolver.h"
-#include "tensorflow/lite/micro/micro_profiler_interface.h"
+#include "tensorflow/lite/micro/micro_profiler.h"
 #include "tensorflow/lite/portable_type_to_tflitetype.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 
-/// Copied from tensorflow/lite/version.h to avoid a dependency chain into
+// Copied from tensorflow/lite/version.h to avoid a dependency chain into
 // tensorflow/core.
 #define TFLITE_SCHEMA_VERSION (3)
 
 namespace tflite {
 
+
 class MicroInterpreter {
  public:
+
+ // A.Stevens Infineon technologies: add hooks for memory requests to provided
+ // robust basis for offline pre-interpretation of Init/Prepare phases.
+ 
+   struct TfLiteContextHooks {
+
+    decltype(TfLiteContext::AllocatePersistentBuffer)  AllocatePersistentBuffer;
+
+    decltype(TfLiteContext::RequestScratchBufferInArena) RequestScratchBufferInArena;
+
+    decltype(TfLiteContext::GetScratchBuffer) GetScratchBuffer;
+
+    decltype(TfLiteContext::NotifyNodeIndex) NotifyNodeIndex;
+  };
+  
   // The lifetime of the model, op resolver, tensor arena, error reporter,
   // resource variables, and profiler must be at least as long as that of the
   // interpreter object, since the interpreter may need to access them at any
@@ -49,8 +65,9 @@ class MicroInterpreter {
   // caller.
   MicroInterpreter(const Model* model, const MicroOpResolver& op_resolver,
                    uint8_t* tensor_arena, size_t tensor_arena_size,
+                   ErrorReporter* error_reporter,
                    MicroResourceVariables* resource_variables = nullptr,
-                   MicroProfilerInterface* profiler = nullptr);
+                   MicroProfiler* profiler = nullptr);
 
   // Create an interpreter instance using an existing MicroAllocator instance.
   // This constructor should be used when creating an allocator that needs to
@@ -58,9 +75,9 @@ class MicroInterpreter {
   // allocations inside the interpreter. The lifetime of the allocator must be
   // as long as that of the interpreter object.
   MicroInterpreter(const Model* model, const MicroOpResolver& op_resolver,
-                   MicroAllocator* allocator,
+                   MicroAllocator* allocator, ErrorReporter* error_reporter,
                    MicroResourceVariables* resource_variables = nullptr,
-                   MicroProfilerInterface* profiler = nullptr);
+                   MicroProfiler* profiler = nullptr);
 
   ~MicroInterpreter();
 
@@ -115,9 +132,15 @@ class MicroInterpreter {
     return nullptr;
   }
 
-  // Reset the state to be what you would expect when the interpreter is first
-  // created. i.e. after Init and Prepare is called for the very first time.
-  TfLiteStatus Reset();
+
+  size_t operators_size() const { return model_->subgraphs()->Get(0)->operators()->size(); }
+
+  inline const NodeAndRegistration node_and_registration(int graph, size_t node) const {
+    return graph_.GetAllocations()->node_and_registrations[node];
+  }
+
+  // Reset all variable tensors to the default value.
+  TfLiteStatus ResetVariableTensors();
 
   TfLiteStatus initialization_status() const { return initialization_status_; }
 
@@ -135,6 +158,24 @@ class MicroInterpreter {
   // arena_used_bytes() + 16.
   size_t arena_used_bytes() const { return allocator_.used_bytes(); }
 
+  // A.Stevens Infineon technologies:
+  // Provides entry-pointer for intercepting allocation etc for
+  // off-line pre-interpretation/instrumentation and similar.
+  //
+  inline TfLiteContext *getTFLContext()  {
+    return &context_;
+  }
+ 
+  inline TfLiteContextHooks *getHooks() const {
+    return hooks_;
+  }
+
+   
+  inline void setHooks( TfLiteContextHooks *hooks) {
+    hooks_ = hooks;
+  }
+
+
  protected:
   const MicroAllocator& allocator() const { return allocator_; }
   const TfLiteContext& context() const { return context_; }
@@ -142,13 +183,19 @@ class MicroInterpreter {
  private:
   // TODO(b/158263161): Consider switching to Create() function to enable better
   // error reporting during initialization.
-  void Init(MicroProfilerInterface* profiler);
+  void Init(MicroProfiler* profiler);
 
   // Gets the current subgraph index used from within context methods.
   int get_subgraph_index() { return graph_.GetCurrentSubgraphIndex(); }
 
+  // A.Stevens Infineon technologies: default for SetNodeIndex hoook used
+  // to associate allocations with individual ops when offline pre-interpreting.
+  // No-op in normal interpreter usage.
+  static void NotifyNodeIndex(const struct TfLiteContext* context, size_t node);
+
   const Model* model_;
   const MicroOpResolver& op_resolver_;
+  ErrorReporter* error_reporter_;
   TfLiteContext context_ = {};
   MicroAllocator& allocator_;
   MicroGraph graph_;
@@ -163,8 +210,12 @@ class MicroInterpreter {
   TfLiteTensor** input_tensors_;
   TfLiteTensor** output_tensors_;
 
-  MicroContext micro_context_;
+  MicroInterpreterContext micro_context_;
+
+  TfLiteContextHooks *hooks_;
+  static TfLiteContextHooks default_hooks_;
 };
+
 
 }  // namespace tflite
 

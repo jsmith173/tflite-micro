@@ -84,6 +84,8 @@ class MicroGraph {
   // for all per-subgraph allocation data.
   SubgraphAllocations* GetAllocations() { return subgraph_allocations_; }
 
+  const SubgraphAllocations* GetAllocations() const { return subgraph_allocations_; }
+
   // Get the resource variables for this TFLM graph.
   MicroResourceVariables* GetResourceVariables() { return resource_variables_; }
 

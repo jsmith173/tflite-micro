@@ -40,7 +40,7 @@ constexpr int Max(int a, int b) { return a >= b ? a : b; }
 // point granularity for large values.
 template <typename T>
 T FloatToQuantizedType(const float value, const float scale, int zero_point) {
-  int32_t result = round(value / scale) + zero_point;
+  int32_t result = roundf(value / scale) + zero_point;
   result =
       std::max(static_cast<int32_t>(std::numeric_limits<T>::min()), result);
   result =

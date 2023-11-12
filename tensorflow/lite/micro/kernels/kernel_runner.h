@@ -18,9 +18,9 @@ limitations under the License.
 
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/kernels/internal/compatibility.h"
-#include "tensorflow/lite/micro/arena_allocator/single_arena_buffer_allocator.h"
 #include "tensorflow/lite/micro/fake_micro_context.h"
 #include "tensorflow/lite/micro/mock_micro_graph.h"
+#include "tensorflow/lite/micro/simple_memory_allocator.h"
 
 namespace tflite {
 namespace micro {
@@ -35,8 +35,7 @@ class KernelRunner {
  public:
   KernelRunner(const TfLiteRegistration& registration, TfLiteTensor* tensors,
                int tensors_size, TfLiteIntArray* inputs,
-               TfLiteIntArray* outputs, void* builtin_data,
-               TfLiteIntArray* intermediates = nullptr);
+               TfLiteIntArray* outputs, void* builtin_data);
 
   // Calls init and prepare on the kernel (i.e. TfLiteRegistration) struct. Any
   // exceptions will be DebugLog'd and returned as a status code.
@@ -47,11 +46,6 @@ class KernelRunner {
   // After successful invoke, results will be available in the output tensor as
   // passed into the constructor of this class.
   TfLiteStatus Invoke();
-
-  // Calls Free on a given TfLiteRegistration pointer(if it's implemented).
-  // After successful Free, kTfLiteOk status will be returned. If Free is not
-  // implemented for a given kernel kTfLiteError will be returned.
-  TfLiteStatus Free();
 
   // Returns a pointer to the internal MockMicroGraph which KernelRunner uses
   // to stub out MicroGraph methods and track invocations on each subgraph.
@@ -70,9 +64,10 @@ class KernelRunner {
   TfLiteNode node_ = {};
   const TfLiteRegistration& registration_;
 
-  SingleArenaBufferAllocator* allocator_;
+  SimpleMemoryAllocator* allocator_;
   MockMicroGraph mock_micro_graph_;
   FakeMicroContext fake_micro_context_;
+
 };
 
 }  // namespace micro
